@@ -43,5 +43,18 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0"
   },
-  "private": true
+  "private": true,
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Roni-Shlomo/Calmia.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Roni-Shlomo/Calmia/issues"
+  },
+  "homepage": "https://github.com/Roni-Shlomo/Calmia#readme"
 }
