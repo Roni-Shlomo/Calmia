@@ -1,10 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer } from 'expo-audio';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Image,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -38,6 +39,7 @@ export default function CalmScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [breathPhase, setBreathPhase] = useState<BreathPhase>('Ready');
   const [currentCycle, setCurrentCycle] = useState(1);
+  const lastPhaseRef = useRef<BreathPhase>('Ready');
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const circleScale = useRef(new Animated.Value(1)).current;
@@ -55,6 +57,7 @@ export default function CalmScreen() {
           setCurrentCycle(TOTAL_CYCLES);
           player.pause();
           player.seekTo(0);
+          saveBreathingSession();
           return TOTAL_SECONDS;
         }
 
@@ -84,6 +87,19 @@ export default function CalmScreen() {
       setBreathPhase('Breathe Out');
     }
   }, [elapsedSeconds, started]);
+
+  useEffect(() => {
+  if (!started) return;
+
+  if (
+    breathPhase !== 'Ready' &&
+    breathPhase !== 'Done' &&
+    lastPhaseRef.current !== breathPhase
+  ) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lastPhaseRef.current = breathPhase;
+  }
+}, [breathPhase, started]);
 
   useEffect(() => {
   if (!started) {
@@ -121,6 +137,35 @@ export default function CalmScreen() {
   }
 }, [breathPhase, started]);
 
+const saveBreathingSession = async () => {
+  try {
+    const storedUser = await AsyncStorage.getItem('currentUser');
+
+    if (!storedUser) {
+      console.log('No user found');
+      return;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    await fetch('http://localhost:6001/breathing/complete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        duration: TOTAL_SECONDS,
+        cycles: TOTAL_CYCLES,
+      }),
+    });
+
+    console.log('Breathing session saved');
+  } catch (error) {
+    console.log('Save breathing session error:', error);
+  }
+};
+
   const handleStartStop = () => {
     if (started) {
       setStarted(false);
@@ -133,6 +178,9 @@ export default function CalmScreen() {
       setElapsedSeconds(0);
       setBreathPhase('Breathe In');
       setCurrentCycle(1);
+
+      lastPhaseRef.current = 'Ready';
+
       progressAnim.stopAnimation();
       progressAnim.setValue(0);
       setStarted(true);
@@ -207,32 +255,26 @@ export default function CalmScreen() {
             </Svg>
           </Animated.View>
 
-          <View
-            style={[
-              styles.breathContent,
-              (breathPhase === 'Breathe In' ||
-                breathPhase === 'Hold' ||
-                breathPhase === 'Breathe Out') &&
-                styles.breathContentWithIcon,
-            ]}
-          >
-            <Text style={styles.breathText}>
-              {breathPhase === 'Ready' ? 'Ready' : breathPhase === 'Done' ? 'Done' : breathPhase}
-            </Text>
+          <View style={styles.breathContent}>
+            {breathPhase === 'Done' ? (
+              <>
+                <Text style={styles.doneEmoji}>♡</Text>
+                <Text style={styles.doneTitle}>Well Done!</Text>
+                <Text style={styles.doneText}>
+                  You completed the 4-7-8 breathing exercise
+                </Text>
 
-            {breathPhase !== 'Ready' && breathPhase !== 'Done' && (
-              <Image
-                source={
-                  breathPhase === 'Breathe In'
-                    ? require('../assets/images/breathe-in.png')
-                    : breathPhase === 'Hold'
-                    ? require('../assets/images/hold.png')
-                    : require('../assets/images/breathe-out.png')
-                }
-                style={styles.breathIcon}
-              />
+                <TouchableOpacity style={styles.startAgainButton} onPress={handleStartStop}>
+                  <Text style={styles.startAgainButtonText}>Start Again</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={styles.breathText}>
+                {breathPhase === 'Ready' ? 'Ready' : breathPhase}
+              </Text>
             )}
           </View>
+          
         </View>
 
         <View style={styles.infoCard}>
@@ -248,9 +290,11 @@ export default function CalmScreen() {
           <Text style={styles.infoValue}>Breathe In 4 · Hold 7 · Breathe Out 8</Text>
         </View>
 
-        <TouchableOpacity style={styles.startButton} onPress={handleStartStop}>
-          <Text style={styles.startButtonText}>{started ? 'Stop' : 'Start'}</Text>
-        </TouchableOpacity>
+        {breathPhase !== 'Done' && (
+          <TouchableOpacity style={styles.startButton} onPress={handleStartStop}>
+            <Text style={styles.startButtonText}>{started ? 'Stop' : 'Start'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -312,11 +356,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   breathText: {
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: '800',
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: 14,
+    marginBottom: 0,
   },
   breathEmoji: {
     fontSize: 92,
@@ -369,11 +413,6 @@ const styles = StyleSheet.create({
   justifyContent: 'center',
   alignItems: 'center',
   },
-  breathIcon: {
-  width: 200,
-  height: 200,
-  resizeMode: 'contain',
-  },
   breathContent: {
   position: 'absolute',
   width: 350,
@@ -382,7 +421,39 @@ const styles = StyleSheet.create({
   alignItems: 'center',
   zIndex: 5,
   },
-  breathContentWithIcon: {
-  transform: [{ translateY: 22 }],
-  },
+  doneEmoji: {
+  fontSize: 54,
+  color: colors.primary,
+  marginBottom: 10,
+},
+doneTitle: {
+  fontSize: 42,
+  fontWeight: '800',
+  color: colors.primary,
+  textAlign: 'center',
+  marginBottom: 14,
+},
+
+doneText: {
+  fontSize: 18,
+  fontWeight: '500',
+  color: colors.text,
+  textAlign: 'center',
+  lineHeight: 25,
+  width: 270,
+  marginBottom: 24,
+},
+
+startAgainButton: {
+  backgroundColor: colors.primary,
+  paddingVertical: 12,
+  paddingHorizontal: 26,
+  borderRadius: 18,
+},
+
+startAgainButtonText: {
+  color: '#fff',
+  fontSize: 15,
+  fontWeight: '700',
+},
 });
