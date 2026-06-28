@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -186,21 +187,7 @@ export default function CalmScreen() {
               { transform: [{ scale: circleScale }] },
             ]}
           >
-            <View style={styles.breathCircle}>
-              <Text style={styles.breathText}>
-                {breathPhase === 'Ready' ? 'Ready' : breathPhase === 'Done' ? 'Done' : breathPhase}
-              </Text>
-
-              <Text style={styles.breathEmoji}>
-                {breathPhase === 'Breathe In'
-                  ? '🌿'
-                  : breathPhase === 'Hold'
-                  ? '🫁'
-                  : breathPhase === 'Breathe Out'
-                  ? '🍃'
-                  : ''}
-              </Text>
-            </View>
+            <View style={styles.breathCircle} />
 
             <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.progressRing}>
               <AnimatedCircle
@@ -219,6 +206,33 @@ export default function CalmScreen() {
               />
             </Svg>
           </Animated.View>
+
+          <View
+            style={[
+              styles.breathContent,
+              (breathPhase === 'Breathe In' ||
+                breathPhase === 'Hold' ||
+                breathPhase === 'Breathe Out') &&
+                styles.breathContentWithIcon,
+            ]}
+          >
+            <Text style={styles.breathText}>
+              {breathPhase === 'Ready' ? 'Ready' : breathPhase === 'Done' ? 'Done' : breathPhase}
+            </Text>
+
+            {breathPhase !== 'Ready' && breathPhase !== 'Done' && (
+              <Image
+                source={
+                  breathPhase === 'Breathe In'
+                    ? require('../assets/images/breathe-in.png')
+                    : breathPhase === 'Hold'
+                    ? require('../assets/images/hold.png')
+                    : require('../assets/images/breathe-out.png')
+                }
+                style={styles.breathIcon}
+              />
+            )}
+          </View>
         </View>
 
         <View style={styles.infoCard}>
@@ -298,11 +312,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   breathText: {
-    fontSize: 46,
+    fontSize: 44,
     fontWeight: '800',
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 14,
   },
   breathEmoji: {
     fontSize: 92,
@@ -354,5 +368,21 @@ const styles = StyleSheet.create({
   height: 350,
   justifyContent: 'center',
   alignItems: 'center',
+  },
+  breathIcon: {
+  width: 200,
+  height: 200,
+  resizeMode: 'contain',
+  },
+  breathContent: {
+  position: 'absolute',
+  width: 350,
+  height: 350,
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 5,
+  },
+  breathContentWithIcon: {
+  transform: [{ translateY: 22 }],
   },
 });
