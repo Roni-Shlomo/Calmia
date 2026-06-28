@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Image,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { colors } from '../constants/colors';
 
@@ -17,6 +19,34 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+  try {
+    const response = await fetch('http://localhost:6001/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Alert.alert('Login failed', data.message || 'Invalid email or password');
+      return;
+    }
+
+    await AsyncStorage.setItem('currentUser', JSON.stringify(data.user));
+
+    router.push('/home');
+  } catch (error) {
+    Alert.alert('Connection error', 'Could not connect to the server');
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -72,7 +102,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={styles.mainButton}
-          onPress={() => router.push('/home')}
+          onPress={handleLogin}
         >
           <Text style={styles.mainButtonText}>Sign In</Text>
           <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />

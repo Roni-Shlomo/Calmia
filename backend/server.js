@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const breathingRoutes = require('./routes/breathingRoutes');
 
 const pool = require('./config/db');
 
@@ -16,6 +17,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/breathing', breathingRoutes);
 
 const PORT = process.env.PORT || 5000;
 
