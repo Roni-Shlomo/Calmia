@@ -50,6 +50,16 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={[styles.mainCard, { backgroundColor: '#F2CFC7' }]}
+          onPress={() => router.push('/relax-listen')}
+        >
+          <Text style={styles.mainCardTitle}>Relax & Listen</Text>
+          <Text style={styles.mainCardText}>
+            Calming podcasts, meditation and relaxing audio
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.mainCard, { backgroundColor: colors.softOrange }]}
           onPress={() => router.push('/reflection')}
         >
