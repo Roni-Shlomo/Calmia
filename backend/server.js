@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const breathingRoutes = require('./routes/breathingRoutes');
+const listeningRoutes = require('./routes/listeningRoutes');
 
 const pool = require('./config/db');
 
@@ -18,6 +19,7 @@ app.get('/', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/breathing', breathingRoutes);
+app.use('/listening', listeningRoutes);
 
 const PORT = process.env.PORT || 5000;
 
