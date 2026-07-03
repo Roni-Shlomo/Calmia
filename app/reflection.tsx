@@ -666,7 +666,7 @@ export default function ReflectionScreen() {
               onPress={handleSaveReflection}
             >
               <Text style={styles.saveButtonText}>
-                {isSaving ? 'saving...' : "save today's reflection"}
+                {isSaving ? 'Saving...' : "Save today's reflection"}
               </Text>
             </TouchableOpacity>
           </>

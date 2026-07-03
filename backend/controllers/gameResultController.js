@@ -60,7 +60,23 @@ const getGameResultsByUser = async (req, res) => {
       [userId]
     );
 
-    res.status(200).json({ results: result.rows });
+    const bestResult = await pool.query(
+      `SELECT game_key, MAX(score)::int AS best_score
+       FROM game_results
+       WHERE user_id = $1
+       GROUP BY game_key`,
+      [userId]
+    );
+
+    const bestScores = bestResult.rows.reduce((scores, row) => {
+      scores[row.game_key] = row.best_score;
+      return scores;
+    }, {});
+
+    res.status(200).json({
+      results: result.rows,
+      bestScores,
+    });
   } catch (error) {
     console.error('Error fetching game results:', error);
     res.status(500).json({ message: 'Server error' });

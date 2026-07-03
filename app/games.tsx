@@ -58,15 +58,6 @@ type BreakoutBall = {
   dy: number;
 };
 
-type GameResult = {
-  id: number;
-  game_key: string;
-  game_name: string;
-  score: number;
-  won: boolean | null;
-  created_at: string;
-};
-
 const MAX_LIVES = 5;
 const BREAKOUT_LIVES = 5;
 const BREAKOUT_MAX_LIVES = 5;
@@ -190,8 +181,7 @@ export default function GamesScreen() {
   const [breakoutBall, setBreakoutBall] = useState<BreakoutBall>(() => createBreakoutBall());
   const [breakoutPaddleX, setBreakoutPaddleX] = useState(50);
   const [breakoutBoardWidth, setBreakoutBoardWidth] = useState(1);
-  const [gameResults, setGameResults] = useState<GameResult[]>([]);
-  const [isLoadingResults, setIsLoadingResults] = useState(true);
+  const [bestScores, setBestScores] = useState<Record<string, number>>({});
   const nextBreakoutDropId = useRef(1);
   const nextBubbleId = useRef(1);
   const savedTapResultRef = useRef(false);
@@ -202,7 +192,6 @@ export default function GamesScreen() {
       const storedUser = await AsyncStorage.getItem('currentUser');
 
       if (!storedUser) {
-        setIsLoadingResults(false);
         return;
       }
 
@@ -211,12 +200,10 @@ export default function GamesScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        setGameResults(data.results || []);
+        setBestScores(data.bestScores || {});
       }
     } catch (error) {
       console.log('Failed to load game results:', error);
-    } finally {
-      setIsLoadingResults(false);
     }
   };
 
@@ -594,6 +581,13 @@ export default function GamesScreen() {
     return styles.normalBubble;
   };
 
+  const renderHighScore = (gameKey: string) => (
+    <View style={styles.highScoreCard}>
+      <Text style={styles.highScoreLabel}>Your high score</Text>
+      <Text style={styles.highScoreValue}>{bestScores[gameKey] ?? 0}</Text>
+    </View>
+  );
+
   const resetMemoryGame = (startImmediately = false) => {
     setMemoryCards(createMemoryCards());
     setSelectedMemoryCards([]);
@@ -754,32 +748,6 @@ export default function GamesScreen() {
         </View>
       </TouchableOpacity>
 
-      <View style={styles.resultsCard}>
-        <Text style={styles.resultsTitle}>Your recent results</Text>
-
-        {isLoadingResults ? (
-          <Text style={styles.resultsEmptyText}>Loading results...</Text>
-        ) : gameResults.length === 0 ? (
-          <Text style={styles.resultsEmptyText}>
-            Play Tap to Relax or Calm Break to see your scores here.
-          </Text>
-        ) : (
-          gameResults.map((result) => (
-            <View key={result.id} style={styles.resultRow}>
-              <View>
-                <Text style={styles.resultGameName}>{result.game_name}</Text>
-                <Text style={styles.resultDate}>
-                  {new Date(result.created_at).toLocaleDateString('en-US')}
-                </Text>
-              </View>
-
-              <View style={styles.resultScorePill}>
-                <Text style={styles.resultScoreText}>{result.score}</Text>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
     </ScrollView>
   );
 
@@ -1000,6 +968,8 @@ export default function GamesScreen() {
           ))}
       </View>
 
+      {renderHighScore('tap_to_relax')}
+
       {gameStatus === 'playing' || gameStatus === 'paused' ? (
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.secondaryButton} onPress={togglePause}>
@@ -1144,6 +1114,8 @@ export default function GamesScreen() {
             </View>
           )}
         </View>
+
+        {renderHighScore('calm_break')}
 
         {breakoutStatus === 'playing' || breakoutStatus === 'paused' ? (
           <View style={styles.buttonRow}>
@@ -1378,60 +1350,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     maxWidth: 420,
-  },
-  resultsCard: {
-    backgroundColor: colors.card,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  resultsTitle: {
-    color: colors.primary,
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 14,
-  },
-  resultsEmptyText: {
-    color: colors.subtext,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FAF7F2',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
-  },
-  resultGameName: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 3,
-  },
-  resultDate: {
-    color: colors.subtext,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  resultScorePill: {
-    minWidth: 54,
-    alignItems: 'center',
-    backgroundColor: colors.secondary,
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  resultScoreText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
   },
   bubbleIllustration: {
     width: 160,
@@ -1990,12 +1908,35 @@ const styles = StyleSheet.create({
   gameBoard: {
     width: '100%',
     height: 430,
-    backgroundColor: colors.softBrown,
+    backgroundColor: '#EFE3D7',
     borderRadius: 32,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: 20,
+  },
+  highScoreCard: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  highScoreLabel: {
+    color: colors.subtext,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  highScoreValue: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: '800',
   },
   breakoutBoard: {
     width: '100%',
