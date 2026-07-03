@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { completeBreathing } = require('../controllers/breathingController');
+const {
+  completeBreathing,
+  getBreathingSummary,
+} = require('../controllers/breathingController');
 
 router.post('/complete', completeBreathing);
+router.get('/:userId/summary', getBreathingSummary);
 
 module.exports = router;

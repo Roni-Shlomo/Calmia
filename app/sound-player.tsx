@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -97,13 +98,22 @@ export default function SoundPlayerScreen() {
 
   const saveListeningSession = async () => {
     try {
+        const storedUser = await AsyncStorage.getItem('currentUser');
+
+        if (!storedUser) {
+          console.log('No user found');
+          return;
+        }
+
+        const user = JSON.parse(storedUser);
+
         await fetch(`${API_URL}/listening/complete`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            userId: 1,
+            userId: user.id,
             category: backLabel || 'Nature Sounds',
             itemName: soundTitle,
             duration: totalSeconds ? Math.round(totalSeconds) : null,
