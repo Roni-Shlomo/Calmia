@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
 import { useRouter } from 'expo-router';
@@ -7,6 +8,7 @@ import {
   Image,
   LayoutChangeEvent,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -54,6 +56,15 @@ type BreakoutBall = {
   y: number;
   dx: number;
   dy: number;
+};
+
+type GameResult = {
+  id: number;
+  game_key: string;
+  game_name: string;
+  score: number;
+  won: boolean | null;
+  created_at: string;
 };
 
 const MAX_LIVES = 5;
@@ -179,8 +190,73 @@ export default function GamesScreen() {
   const [breakoutBall, setBreakoutBall] = useState<BreakoutBall>(() => createBreakoutBall());
   const [breakoutPaddleX, setBreakoutPaddleX] = useState(50);
   const [breakoutBoardWidth, setBreakoutBoardWidth] = useState(1);
+  const [gameResults, setGameResults] = useState<GameResult[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(true);
   const nextBreakoutDropId = useRef(1);
   const nextBubbleId = useRef(1);
+  const savedTapResultRef = useRef(false);
+  const savedBreakoutResultRef = useRef(false);
+
+  const loadGameResults = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem('currentUser');
+
+      if (!storedUser) {
+        setIsLoadingResults(false);
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+      const response = await fetch(`http://localhost:6001/game-results/${user.id}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setGameResults(data.results || []);
+      }
+    } catch (error) {
+      console.log('Failed to load game results:', error);
+    } finally {
+      setIsLoadingResults(false);
+    }
+  };
+
+  const saveGameResult = async (
+    gameKey: string,
+    gameName: string,
+    gameScore: number,
+    won?: boolean
+  ) => {
+    try {
+      const storedUser = await AsyncStorage.getItem('currentUser');
+
+      if (!storedUser) return;
+
+      const user = JSON.parse(storedUser);
+      const response = await fetch('http://localhost:6001/game-results', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          gameKey,
+          gameName,
+          score: gameScore,
+          won,
+        }),
+      });
+
+      if (response.ok) {
+        loadGameResults();
+      }
+    } catch (error) {
+      console.log('Failed to save game result:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadGameResults();
+  }, []);
 
   useEffect(() => {
     if (gameStatus !== 'playing') return;
@@ -421,6 +497,21 @@ export default function GamesScreen() {
     }
   }, [breakoutBricks, breakoutStatus]);
 
+  useEffect(() => {
+    if (gameStatus !== 'finished' || savedTapResultRef.current) return;
+
+    savedTapResultRef.current = true;
+    saveGameResult('tap_to_relax', 'Tap to Relax', score, false);
+  }, [gameStatus, score]);
+
+  useEffect(() => {
+    if (breakoutStatus !== 'finished' || savedBreakoutResultRef.current) return;
+
+    const isComplete = breakoutBricks.every((brick) => !brick.active);
+    savedBreakoutResultRef.current = true;
+    saveGameResult('calm_break', 'Calm Break', breakoutScore, isComplete);
+  }, [breakoutBricks, breakoutScore, breakoutStatus]);
+
   const openTapToRelax = () => {
     Haptics.selectionAsync();
     setScreenMode('tapToRelax');
@@ -440,6 +531,7 @@ export default function GamesScreen() {
 
   const startGame = () => {
     Haptics.selectionAsync();
+    savedTapResultRef.current = false;
     setScore(0);
     setLives(MAX_LIVES);
     setSpeedLevel(0);
@@ -510,6 +602,7 @@ export default function GamesScreen() {
   };
 
   const resetBreakoutGame = (startImmediately = false) => {
+    savedBreakoutResultRef.current = false;
     setBreakoutScore(0);
     setBreakoutLives(BREAKOUT_LIVES);
     setBreakoutBricks(createBreakoutBricks());
@@ -581,7 +674,7 @@ export default function GamesScreen() {
   };
 
   const renderMenu = () => (
-    <View style={styles.content}>
+    <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.menuHero}>
         <View style={styles.heroCopy}>
           <Text style={styles.menuEyebrow}>Mindful activities</Text>
@@ -660,7 +753,34 @@ export default function GamesScreen() {
           <View style={styles.breakoutIllustrationPaddle} />
         </View>
       </TouchableOpacity>
-    </View>
+
+      <View style={styles.resultsCard}>
+        <Text style={styles.resultsTitle}>Your recent results</Text>
+
+        {isLoadingResults ? (
+          <Text style={styles.resultsEmptyText}>Loading results...</Text>
+        ) : gameResults.length === 0 ? (
+          <Text style={styles.resultsEmptyText}>
+            Play Tap to Relax or Calm Break to see your scores here.
+          </Text>
+        ) : (
+          gameResults.map((result) => (
+            <View key={result.id} style={styles.resultRow}>
+              <View>
+                <Text style={styles.resultGameName}>{result.game_name}</Text>
+                <Text style={styles.resultDate}>
+                  {new Date(result.created_at).toLocaleDateString('en-US')}
+                </Text>
+              </View>
+
+              <View style={styles.resultScorePill}>
+                <Text style={styles.resultScoreText}>{result.score}</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
   );
 
   const renderMemoryArt = (art: string) => {
@@ -1095,6 +1215,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 20,
+    paddingBottom: 36,
   },
   menuHero: {
     paddingHorizontal: 8,
@@ -1257,6 +1378,60 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     maxWidth: 420,
+  },
+  resultsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  resultsTitle: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 14,
+  },
+  resultsEmptyText: {
+    color: colors.subtext,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF7F2',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  resultGameName: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  resultDate: {
+    color: colors.subtext,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resultScorePill: {
+    minWidth: 54,
+    alignItems: 'center',
+    backgroundColor: colors.secondary,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  resultScoreText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
   },
   bubbleIllustration: {
     width: 160,
