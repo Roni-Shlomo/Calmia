@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+    Alert,
     Image,
     SafeAreaView,
     ScrollView,
@@ -19,6 +21,48 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSignup = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert('Missing details', 'Please fill in all fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Passwords do not match', 'Please confirm your password again.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch('http://localhost:6001/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Sign up failed', data.message || 'Could not create account.');
+        return;
+      }
+
+      await AsyncStorage.setItem('currentUser', JSON.stringify(data.user));
+      router.push('/home');
+    } catch (error) {
+      Alert.alert('Connection error', 'Could not connect to the server.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -96,10 +140,13 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.mainButton}
-            onPress={() => router.push('/home')}
+            style={[styles.mainButton, isSubmitting && styles.mainButtonDisabled]}
+            disabled={isSubmitting}
+            onPress={handleSignup}
           >
-            <Text style={styles.mainButtonText}>Sign Up</Text>
+            <Text style={styles.mainButtonText}>
+              {isSubmitting ? 'Signing Up...' : 'Sign Up'}
+            </Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
 
@@ -202,6 +249,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 26,
     marginBottom: 18,
+  },
+  mainButtonDisabled: {
+    opacity: 0.65,
   },
   mainButtonText: {
     color: '#FFFFFF',
