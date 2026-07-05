@@ -7,6 +7,7 @@ const breathingRoutes = require('./routes/breathingRoutes');
 const listeningRoutes = require('./routes/listeningRoutes');
 const gameResultRoutes = require('./routes/gameResultRoutes');
 const reflectionRoutes = require('./routes/reflectionRoutes');
+const aiAnalysisRoutes = require('./routes/aiAnalysisRoutes');
 
 const pool = require('./config/db');
 
@@ -24,6 +25,7 @@ app.use('/breathing', breathingRoutes);
 app.use('/listening', listeningRoutes);
 app.use('/game-results', gameResultRoutes);
 app.use('/reflections', reflectionRoutes);
+app.use('/ai-analysis', aiAnalysisRoutes);
 
 const PORT = process.env.PORT || 5000;
 
