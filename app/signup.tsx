@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+    Alert,
     Image,
     SafeAreaView,
     ScrollView,
@@ -19,6 +21,94 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  };
+
+  const isValidPassword = (value: string) => {
+    return value.length >= 8 && /[A-Za-z]/.test(value) && /\d/.test(value);
+  };
+
+  const trimmedEmail = email.trim();
+  const passwordRequirements = [
+    {
+      label: 'At least 8 characters',
+      isValid: password.length >= 8,
+    },
+    {
+      label: 'At least one letter',
+      isValid: /[A-Za-z]/.test(password),
+    },
+    {
+      label: 'At least one number',
+      isValid: /\d/.test(password),
+    },
+  ];
+  const hasPasswordError =
+    hasTriedSubmit && passwordRequirements.some((requirement) => !requirement.isValid);
+  const hasEmailError = hasTriedSubmit && (!trimmedEmail || !isValidEmail(trimmedEmail));
+  const hasConfirmPasswordError =
+    hasTriedSubmit && (!confirmPassword || password !== confirmPassword);
+  const handleSignup = async () => {
+    setHasTriedSubmit(true);
+
+    if (!trimmedEmail || !password || !confirmPassword) {
+      Alert.alert('Missing details', 'Please fill in all fields.');
+      return;
+    }
+
+    if (!isValidEmail(trimmedEmail)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (!isValidPassword(password)) {
+      Alert.alert(
+        'Password requirements',
+        'Password must contain at least 8 characters, at least one letter, and at least one number.'
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Passwords do not match', 'Please confirm your password again.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch('http://localhost:6001/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Sign up failed', data.message || 'Could not create account.');
+        return;
+      }
+
+      await AsyncStorage.setItem('currentUser', JSON.stringify(data.user));
+      router.push('/home');
+    } catch {
+      Alert.alert('Connection error', 'Could not connect to the server.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -39,11 +129,11 @@ export default function SignupScreen() {
           <Text style={styles.subtitle}>Create your calm space</Text>
 
           <Text style={styles.label}>Email Address</Text>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, hasEmailError && styles.inputWrapperError]}>
             <Ionicons
               name="mail-outline"
               size={18}
-              color={colors.subtext}
+              color={hasEmailError ? '#C96F63' : colors.subtext}
               style={styles.inputIcon}
             />
             <TextInput
@@ -56,50 +146,100 @@ export default function SignupScreen() {
               autoCapitalize="none"
             />
           </View>
+          {hasEmailError && (
+            <Text style={styles.errorText}>Please enter a valid email address.</Text>
+          )}
 
           <Text style={styles.label}>Password</Text>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, hasPasswordError && styles.inputWrapperError]}>
             <Ionicons
               name="lock-closed-outline"
               size={18}
-              color={colors.subtext}
+              color={hasPasswordError ? '#C96F63' : colors.subtext}
               style={styles.inputIcon}
             />
             <TextInput
               placeholder="Enter your password..."
               placeholderTextColor={colors.subtext}
               style={styles.input}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
               autoCapitalize="none"
             />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((current) => !current)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.subtext}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.passwordRequirements}>
+            <Text style={[styles.passwordHint, hasPasswordError && styles.passwordHintError]}>
+              Password must contain:
+            </Text>
+            {passwordRequirements.map((requirement) => {
+              const showRequirementError = hasTriedSubmit && !requirement.isValid;
+
+              return (
+                <Text
+                  key={requirement.label}
+                  style={[
+                    styles.requirementText,
+                    showRequirementError && styles.requirementTextError,
+                    requirement.isValid && styles.requirementTextValid,
+                  ]}
+                >
+                  {requirement.isValid ? '✓' : '•'} {requirement.label}
+                </Text>
+              );
+            })}
           </View>
 
           <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, hasConfirmPasswordError && styles.inputWrapperError]}>
             <Ionicons
               name="lock-closed-outline"
               size={18}
-              color={colors.subtext}
+              color={hasConfirmPasswordError ? '#C96F63' : colors.subtext}
               style={styles.inputIcon}
             />
             <TextInput
               placeholder="Confirm your password..."
               placeholderTextColor={colors.subtext}
               style={styles.input}
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               autoCapitalize="none"
             />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowConfirmPassword((current) => !current)}
+            >
+              <Ionicons
+                name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.subtext}
+              />
+            </TouchableOpacity>
           </View>
+          {hasConfirmPasswordError && (
+            <Text style={styles.errorText}>Passwords must match.</Text>
+          )}
 
           <TouchableOpacity
-            style={styles.mainButton}
-            onPress={() => router.push('/home')}
+            style={[styles.mainButton, isSubmitting && styles.mainButtonDisabled]}
+            disabled={isSubmitting}
+            onPress={handleSignup}
           >
-            <Text style={styles.mainButtonText}>Sign Up</Text>
+            <Text style={styles.mainButtonText}>
+              {isSubmitting ? 'Signing Up...' : 'Sign Up'}
+            </Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
 
@@ -183,6 +323,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
+  inputWrapperError: {
+    borderColor: '#C96F63',
+    backgroundColor: '#FFF8F6',
+  },
   inputIcon: {
     marginRight: 8,
   },
@@ -191,6 +335,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 14,
+  },
+  eyeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordHint: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  passwordHintError: {
+    color: '#8F4B41',
+    fontWeight: '700',
+  },
+  passwordRequirements: {
+    marginTop: 8,
+    gap: 3,
+  },
+  requirementText: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  requirementTextError: {
+    color: '#C96F63',
+    fontWeight: '700',
+  },
+  requirementTextValid: {
+    color: colors.secondary,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: '#C96F63',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 8,
   },
   mainButton: {
     backgroundColor: colors.primary,
@@ -202,6 +388,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 26,
     marginBottom: 18,
+  },
+  mainButtonDisabled: {
+    opacity: 0.65,
   },
   mainButtonText: {
     color: '#FFFFFF',

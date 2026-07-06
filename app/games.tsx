@@ -1,12 +1,14 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   GestureResponderEvent,
   Image,
   LayoutChangeEvent,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -61,9 +63,10 @@ const BREAKOUT_LIVES = 5;
 const BREAKOUT_MAX_LIVES = 5;
 const BREAKOUT_PADDLE_WIDTH = 26;
 const BREAKOUT_BALL_SIZE = 18;
-const BREAKOUT_SPEED_GAIN = 1.025;
-const BREAKOUT_TICK_SPEED_GAIN = 1.0012;
+const BREAKOUT_SPEED_GAIN = 1.006;
+const BREAKOUT_TICK_SPEED_GAIN = 1.00012;
 const BREAKOUT_MAX_SPEED = 1.72;
+const BREAKOUT_BASE_SPEED = 0.72;
 const BREAKOUT_DROP_SPEED = 0.72;
 const SPEED_STEP = 0.1;
 const MAX_SPEED_LEVEL = 6;
@@ -112,12 +115,19 @@ const createBreakoutBricks = (): BreakoutBrick[] => {
   });
 };
 
-const createBreakoutBall = (): BreakoutBall => ({
-  x: 50,
-  y: 72,
-  dx: Math.random() > 0.5 ? 0.42 : -0.42,
-  dy: -0.58,
-});
+const createBreakoutBall = (speed = BREAKOUT_BASE_SPEED): BreakoutBall => {
+  const direction = Math.random() > 0.5 ? 1 : -1;
+  const targetSpeed = Math.max(BREAKOUT_BASE_SPEED, Math.min(BREAKOUT_MAX_SPEED, speed));
+  const dx = direction * targetSpeed * 0.58;
+  const dy = -Math.sqrt(Math.max(0.2, targetSpeed * targetSpeed - dx * dx));
+
+  return {
+    x: 50,
+    y: 72,
+    dx,
+    dy,
+  };
+};
 
 const getBreakoutSpeed = (dx: number, dy: number) => Math.sqrt(dx * dx + dy * dy);
 
@@ -179,8 +189,69 @@ export default function GamesScreen() {
   const [breakoutBall, setBreakoutBall] = useState<BreakoutBall>(() => createBreakoutBall());
   const [breakoutPaddleX, setBreakoutPaddleX] = useState(50);
   const [breakoutBoardWidth, setBreakoutBoardWidth] = useState(1);
+  const [bestScores, setBestScores] = useState<Record<string, number>>({});
   const nextBreakoutDropId = useRef(1);
   const nextBubbleId = useRef(1);
+  const savedTapResultRef = useRef(false);
+  const savedBreakoutResultRef = useRef(false);
+
+  const loadGameResults = useCallback(async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem('currentUser');
+
+      if (!storedUser) {
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+      const response = await fetch(`http://localhost:6001/game-results/${user.id}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setBestScores(data.bestScores || {});
+      }
+    } catch (error) {
+      console.log('Failed to load game results:', error);
+    }
+  }, []);
+
+  const saveGameResult = useCallback(async (
+    gameKey: string,
+    gameName: string,
+    gameScore: number,
+    won?: boolean
+  ) => {
+    try {
+      const storedUser = await AsyncStorage.getItem('currentUser');
+
+      if (!storedUser) return;
+
+      const user = JSON.parse(storedUser);
+      const response = await fetch('http://localhost:6001/game-results', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          gameKey,
+          gameName,
+          score: gameScore,
+          won,
+        }),
+      });
+
+      if (response.ok) {
+        loadGameResults();
+      }
+    } catch (error) {
+      console.log('Failed to save game result:', error);
+    }
+  }, [loadGameResults]);
+
+  useEffect(() => {
+    loadGameResults();
+  }, [loadGameResults]);
 
   useEffect(() => {
     if (gameStatus !== 'playing') return;
@@ -337,7 +408,7 @@ export default function GamesScreen() {
 
         if (hitPaddle) {
           const paddleOffset = (nextBall.x - breakoutPaddleX) / paddleHalfWidth;
-          const currentSpeed = Math.max(0.72, getBreakoutSpeed(nextDx, nextDy));
+          const currentSpeed = Math.max(BREAKOUT_BASE_SPEED, getBreakoutSpeed(nextDx, nextDy));
           nextDx = paddleOffset * currentSpeed * 0.82;
           nextDy = -Math.sqrt(Math.max(0.22, currentSpeed * currentSpeed - nextDx * nextDx));
           const fasterBall = speedUpBreakoutBall(nextDx, nextDy);
@@ -400,7 +471,12 @@ export default function GamesScreen() {
             return nextLives;
           });
 
-          return createBreakoutBall();
+          const resetSpeed = Math.max(
+            BREAKOUT_BASE_SPEED,
+            Math.min(BREAKOUT_MAX_SPEED, getBreakoutSpeed(nextDx, nextDy) * 0.96)
+          );
+
+          return createBreakoutBall(resetSpeed);
         }
 
         return { ...nextBall, dx: nextDx, dy: nextDy };
@@ -411,7 +487,7 @@ export default function GamesScreen() {
   }, [breakoutStatus, breakoutBricks, breakoutPaddleX, popPlayer]);
 
   useEffect(() => {
-    if (breakoutStatus !== 'playing') return;
+    if (breakoutStatus === 'idle' || breakoutStatus === 'finished') return;
 
     const hasActiveBricks = breakoutBricks.some((brick) => brick.active);
 
@@ -420,6 +496,21 @@ export default function GamesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [breakoutBricks, breakoutStatus]);
+
+  useEffect(() => {
+    if (gameStatus !== 'finished' || savedTapResultRef.current) return;
+
+    savedTapResultRef.current = true;
+    saveGameResult('tap_to_relax', 'Tap to Relax', score, false);
+  }, [gameStatus, saveGameResult, score]);
+
+  useEffect(() => {
+    if (breakoutStatus !== 'finished' || savedBreakoutResultRef.current) return;
+
+    const isComplete = breakoutBricks.every((brick) => !brick.active);
+    savedBreakoutResultRef.current = true;
+    saveGameResult('calm_break', 'Calm Break', breakoutScore, isComplete);
+  }, [breakoutBricks, breakoutScore, breakoutStatus, saveGameResult]);
 
   const openTapToRelax = () => {
     Haptics.selectionAsync();
@@ -440,6 +531,7 @@ export default function GamesScreen() {
 
   const startGame = () => {
     Haptics.selectionAsync();
+    savedTapResultRef.current = false;
     setScore(0);
     setLives(MAX_LIVES);
     setSpeedLevel(0);
@@ -502,6 +594,13 @@ export default function GamesScreen() {
     return styles.normalBubble;
   };
 
+  const renderHighScore = (gameKey: string) => (
+    <View style={styles.highScoreCard}>
+      <Text style={styles.highScoreLabel}>Your high score</Text>
+      <Text style={styles.highScoreValue}>{bestScores[gameKey] ?? 0}</Text>
+    </View>
+  );
+
   const resetMemoryGame = (startImmediately = false) => {
     setMemoryCards(createMemoryCards());
     setSelectedMemoryCards([]);
@@ -510,6 +609,7 @@ export default function GamesScreen() {
   };
 
   const resetBreakoutGame = (startImmediately = false) => {
+    savedBreakoutResultRef.current = false;
     setBreakoutScore(0);
     setBreakoutLives(BREAKOUT_LIVES);
     setBreakoutBricks(createBreakoutBricks());
@@ -581,7 +681,7 @@ export default function GamesScreen() {
   };
 
   const renderMenu = () => (
-    <View style={styles.content}>
+    <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.menuHero}>
         <View style={styles.heroCopy}>
           <Text style={styles.menuEyebrow}>Mindful activities</Text>
@@ -660,7 +760,8 @@ export default function GamesScreen() {
           <View style={styles.breakoutIllustrationPaddle} />
         </View>
       </TouchableOpacity>
-    </View>
+
+    </ScrollView>
   );
 
   const renderMemoryArt = (art: string) => {
@@ -880,6 +981,8 @@ export default function GamesScreen() {
           ))}
       </View>
 
+      {renderHighScore('tap_to_relax')}
+
       {gameStatus === 'playing' || gameStatus === 'paused' ? (
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.secondaryButton} onPress={togglePause}>
@@ -902,7 +1005,9 @@ export default function GamesScreen() {
 
   const renderCalmBreak = () => {
     const isComplete = breakoutBricks.every((brick) => !brick.active);
-    const endTitle = isComplete ? 'You win !!' : 'Nice try';
+    const displayedBreakoutStatus =
+      isComplete && breakoutStatus !== 'idle' ? 'finished' : breakoutStatus;
+    const endTitle = isComplete ? 'You win!' : 'Nice try';
     const endText = isComplete
       ? 'You released all the blocks.'
       : `Your score: ${breakoutScore}`;
@@ -947,7 +1052,7 @@ export default function GamesScreen() {
                 )
             )}
 
-          {(breakoutStatus === 'playing' || breakoutStatus === 'paused') &&
+          {(displayedBreakoutStatus === 'playing' || displayedBreakoutStatus === 'paused') &&
             breakoutDrops.map((drop) => (
               <View
                 key={drop.id}
@@ -975,7 +1080,7 @@ export default function GamesScreen() {
               </View>
             ))}
 
-          {(breakoutStatus === 'playing' || breakoutStatus === 'paused') && (
+          {(displayedBreakoutStatus === 'playing' || displayedBreakoutStatus === 'paused') && (
             <>
               <View
                 style={[
@@ -1011,13 +1116,13 @@ export default function GamesScreen() {
             </View>
           )}
 
-          {breakoutStatus === 'paused' && (
+          {displayedBreakoutStatus === 'paused' && (
             <View style={styles.pauseBadge}>
               <Text style={styles.pauseBadgeText}>Paused</Text>
             </View>
           )}
 
-          {breakoutStatus === 'finished' && (
+          {displayedBreakoutStatus === 'finished' && (
             <View style={styles.centerMessage}>
               <Text style={styles.centerTitle}>{endTitle}</Text>
               <Text style={styles.centerText}>{endText}</Text>
@@ -1025,11 +1130,13 @@ export default function GamesScreen() {
           )}
         </View>
 
-        {breakoutStatus === 'playing' || breakoutStatus === 'paused' ? (
+        {renderHighScore('calm_break')}
+
+        {displayedBreakoutStatus === 'playing' || displayedBreakoutStatus === 'paused' ? (
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.secondaryButton} onPress={toggleBreakoutPause}>
               <Text style={styles.secondaryButtonText}>
-                {breakoutStatus === 'playing' ? 'Pause' : 'Resume'}
+                {displayedBreakoutStatus === 'playing' ? 'Pause' : 'Resume'}
               </Text>
             </TouchableOpacity>
 
@@ -1040,7 +1147,7 @@ export default function GamesScreen() {
         ) : (
           <TouchableOpacity style={styles.startButton} onPress={startBreakoutGame}>
             <Text style={styles.startButtonText}>
-              {breakoutStatus === 'finished' ? 'Play Again' : 'Start'}
+              {displayedBreakoutStatus === 'finished' ? 'Play Again' : 'Start'}
             </Text>
           </TouchableOpacity>
         )}
@@ -1095,6 +1202,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 20,
+    paddingBottom: 36,
   },
   menuHero: {
     paddingHorizontal: 8,
@@ -1454,7 +1562,7 @@ const styles = StyleSheet.create({
   memoryIntroCard: {
     width: '100%',
     minHeight: 430,
-    backgroundColor: colors.softBrown,
+    backgroundColor: '#EFE3D7',
     borderRadius: 32,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1815,12 +1923,35 @@ const styles = StyleSheet.create({
   gameBoard: {
     width: '100%',
     height: 430,
-    backgroundColor: colors.softBrown,
+    backgroundColor: '#EFE3D7',
     borderRadius: 32,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: 20,
+  },
+  highScoreCard: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  highScoreLabel: {
+    color: colors.subtext,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  highScoreValue: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: '800',
   },
   breakoutBoard: {
     width: '100%',

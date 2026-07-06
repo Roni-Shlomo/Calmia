@@ -11,7 +11,6 @@ export default function RootLayout() {
       <Stack.Screen name="reflection" />
       <Stack.Screen name="data-view" />
       <Stack.Screen name="therapist-finder" />
-      <Stack.Screen name="forgot-password" />
     </Stack>
   );
 }
