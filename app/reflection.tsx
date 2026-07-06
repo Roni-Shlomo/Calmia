@@ -254,7 +254,7 @@ export default function ReflectionScreen() {
       setNotes(data.reflection.notes || '');
       setHasTriedSubmit(false);
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       Alert.alert('Connection error', 'Could not connect to the server.');
     } finally {
       setIsSaving(false);
@@ -377,7 +377,7 @@ export default function ReflectionScreen() {
                 setIsEditing(true);
               }}
             >
-              <Text style={styles.saveButtonText}>Edit Today's Reflection</Text>
+              <Text style={styles.saveButtonText}>{"Edit Today's Reflection"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -658,7 +658,7 @@ export default function ReflectionScreen() {
               </View>
             </View>
 
-            <Text style={styles.almostDoneText}>You're almost done 🌱</Text>
+            <Text style={styles.almostDoneText}>{"You're almost done 🌱"}</Text>
 
             <TouchableOpacity
               style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}

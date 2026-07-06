@@ -35,7 +35,7 @@ type Reflection = {
 
 type ChartData = {
   title: string;
-  data: Array<number | null>;
+  data: (number | null)[];
   labels: string[];
 };
 
@@ -70,26 +70,21 @@ type AiAnalysisResult = {
     title: string;
     text: string;
   };
-  patterns: Array<{
+  patterns: {
     title: string;
     insight: string;
     confidence: 'low' | 'medium' | 'high';
-  }>;
-  helpfulStrategies: Array<{
+  }[];
+  helpfulStrategies: {
     name: string;
     insight: string;
     confidence: 'low' | 'medium' | 'high';
-  }>;
+  }[];
   gentleSuggestion: {
     title: string;
     text: string;
   };
   encouragingMessage: string;
-};
-
-const formatShortDate = (dateValue: string) => {
-  const date = new Date(dateValue);
-  return `${date.getDate()}/${date.getMonth() + 1}`;
 };
 
 const getDateKey = (dateValue: string | Date) => {

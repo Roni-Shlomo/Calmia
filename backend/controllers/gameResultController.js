@@ -64,6 +64,7 @@ const getGameResultsByUser = async (req, res) => {
       `SELECT game_key, MAX(score)::int AS best_score
        FROM game_results
        WHERE user_id = $1
+       AND (game_key != 'calm_break' OR won = true)
        GROUP BY game_key`,
       [userId]
     );

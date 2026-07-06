@@ -1,16 +1,36 @@
 const pool = require('../config/db');
 
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const isValidPassword = (password) => {
+  return password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password);
+};
+
 const signup = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email ? email.trim() : '';
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        message:
+          'Password must contain at least 8 characters, at least one letter, and at least one number',
+      });
     }
 
     const existingUser = await pool.query(
       'SELECT * FROM users WHERE email = $1',
-      [email]
+      [normalizedEmail]
     );
 
     if (existingUser.rows.length > 0) {
@@ -19,7 +39,7 @@ const signup = async (req, res) => {
 
     const newUser = await pool.query(
       'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
-      [email, password]
+      [normalizedEmail, password]
     );
 
     res.status(201).json({

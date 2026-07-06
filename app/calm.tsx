@@ -68,7 +68,7 @@ export default function CalmScreen() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [started]);
+  }, [player, started]);
 
   useEffect(() => {
     if (!started) return;
@@ -135,7 +135,7 @@ export default function CalmScreen() {
       useNativeDriver: true,
     }).start();
   }
-}, [breathPhase, started]);
+}, [breathPhase, circleScale, started]);
 
 const saveBreathingSession = async () => {
   try {

@@ -132,7 +132,7 @@ export default function SoundPlayerScreen() {
   if (selectedMinutes === null) return null;
 
   return selectedMinutes * 60;
-  }, [isMeditation, selectedMinutes, status.duration]);
+  }, [isFixedAudio, selectedMinutes, status.duration]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -323,7 +323,7 @@ export default function SoundPlayerScreen() {
             <Text style={styles.modalTitle}>Session Complete 🌿</Text>
             <Text style={styles.modalText}>
               Great job taking a moment for yourself.{'\n'}
-              We hope you're feeling a little calmer.
+              {"We hope you're feeling a little calmer."}
             </Text>
 
             <TouchableOpacity
