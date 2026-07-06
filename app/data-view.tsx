@@ -319,11 +319,16 @@ const getMoodDistribution = (reflections: Reflection[]): MoodDistributionItem[] 
 };
 
 const getReflectionStressSources = (reflection: Reflection) => {
+  const filterStressSources = (sources: string[]) =>
+    sources.filter((source) => source !== 'Nothing');
+
   if (reflection.stress_sources?.length > 0) {
-    return reflection.stress_sources;
+    return filterStressSources(reflection.stress_sources);
   }
 
-  return reflection.stress_source ? [reflection.stress_source] : [];
+  return reflection.stress_source && reflection.stress_source !== 'Nothing'
+    ? [reflection.stress_source]
+    : [];
 };
 
 const getStressSourceBreakdown = (reflections: Reflection[]): StressSourceItem[] => {

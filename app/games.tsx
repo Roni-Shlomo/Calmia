@@ -1562,7 +1562,7 @@ const styles = StyleSheet.create({
   memoryIntroCard: {
     width: '100%',
     minHeight: 430,
-    backgroundColor: colors.softBrown,
+    backgroundColor: '#EFE3D7',
     borderRadius: 32,
     borderWidth: 1,
     borderColor: colors.border,

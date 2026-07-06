@@ -19,6 +19,7 @@ const moodLabels = [
 ];
 
 const sleepGroups = ['Less than 5', '5-6', '7-8', '9+'];
+const exerciseDurationGroups = ['Under 20 min', '20-40 min', '40-60 min', '60+ min'];
 
 const getRangeStartDate = (range) => {
   if (range === 'all') return null;
@@ -64,11 +65,24 @@ const countItems = (items) => {
 };
 
 const getStressSources = (reflection) => {
+  const filterStressSources = (sources) =>
+    sources.filter((source) => source !== 'Nothing');
+
   if (Array.isArray(reflection.stress_sources) && reflection.stress_sources.length) {
-    return reflection.stress_sources;
+    return filterStressSources(reflection.stress_sources);
   }
 
-  return reflection.stress_source ? [reflection.stress_source] : [];
+  return reflection.stress_source && reflection.stress_source !== 'Nothing'
+    ? [reflection.stress_source]
+    : [];
+};
+
+const hasNoStressSource = (reflection) => {
+  if (Array.isArray(reflection.stress_sources) && reflection.stress_sources.length) {
+    return reflection.stress_sources.includes('Nothing');
+  }
+
+  return reflection.stress_source === 'Nothing';
 };
 
 const buildSleepVsStress = (reflections) =>
@@ -107,6 +121,22 @@ const buildExerciseImpact = (reflections) => {
   };
 };
 
+const buildExerciseDurationImpact = (reflections) =>
+  exerciseDurationGroups.map((label) => {
+    const entries = reflections.filter(
+      (reflection) =>
+        reflection.exercised === true && reflection.exercise_duration === label
+    );
+
+    return {
+      label,
+      count: entries.length,
+      averageStress: averageDecimal(
+        entries.map((reflection) => reflection.stress_level)
+      ),
+    };
+  });
+
 const buildMoodDistribution = (reflections) => {
   const total = reflections.filter((reflection) => reflection.mood).length;
 
@@ -131,8 +161,17 @@ const buildMoodDistribution = (reflections) => {
   });
 };
 
+const buildPostReflectionFeelingDistribution = (reflections) => {
+  const feelings = reflections
+    .map((reflection) => reflection.post_reflection_feeling)
+    .filter(Boolean);
+
+  return countItems(feelings);
+};
+
 const buildAnalysisInput = (reflections, range, breathingSessions) => {
   const anxietyDays = reflections.filter((reflection) => reflection.anxious).length;
+  const noStressSourceReflections = reflections.filter(hasNoStressSource).length;
 
   return {
     timeRange: range,
@@ -146,14 +185,22 @@ const buildAnalysisInput = (reflections, range, breathingSessions) => {
         reflections.length === 0
           ? null
           : Math.round((anxietyDays / reflections.length) * 100),
+      noStressSourceRate:
+        reflections.length === 0
+          ? null
+          : Math.round((noStressSourceReflections / reflections.length) * 100),
+      noStressSourceReflections,
     },
     moodDistribution: buildMoodDistribution(reflections),
+    postReflectionFeelingDistribution:
+      buildPostReflectionFeelingDistribution(reflections),
     stressSources: countItems(reflections.map(getStressSources)),
     calmingMethods: countItems(
       reflections.map((reflection) => reflection.calming_tools || [])
     ),
     sleepVsStress: buildSleepVsStress(reflections),
     exerciseImpact: buildExerciseImpact(reflections),
+    exerciseDurationImpact: buildExerciseDurationImpact(reflections),
     breathingSessions: {
       completedInApp: breathingSessions.length,
       latestSessions: breathingSessions.slice(0, 5).map((session) => ({
@@ -258,6 +305,10 @@ Important rules:
 - Keep the summary under 60 words.
 - Keep each pattern insight to one short sentence.
 - Keep each strategy insight to one short sentence.
+- Phrase recommendations as gentle observations, not instructions.
+- Prefer wording like "may be linked with", "seems to help", or "you might consider" instead of "try to" or "you should".
+- Prefer "your entries suggest" over direct claims like "you tend to" when describing patterns.
+- Do not promise that a habit will lower stress; describe patterns cautiously.
 - Use the summary title "Reflection Overview".
 - Use the gentleSuggestion title "Lifestyle Insights".
 

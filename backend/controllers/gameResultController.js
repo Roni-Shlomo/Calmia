@@ -12,6 +12,11 @@ const ensureGameResultsTable = async () => {
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);
+
+  await pool.query(`
+    ALTER TABLE game_results
+    ADD COLUMN IF NOT EXISTS won BOOLEAN
+  `);
 };
 
 const saveGameResult = async (req, res) => {

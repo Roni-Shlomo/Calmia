@@ -44,6 +44,7 @@ const stressSourceOptions = [
   'Relationships',
   'Health',
   'Family',
+  'Nothing',
   'Other',
 ];
 const exerciseDurationOptions = ['Under 20 min', '20-40 min', '40-60 min', '60+ min'];
@@ -263,11 +264,17 @@ export default function ReflectionScreen() {
 
   const toggleStressSource = (source: string) => {
     setStressSources((currentSources) => {
-      if (currentSources.includes(source)) {
-        return currentSources.filter((item) => item !== source);
+      if (source === 'Nothing') {
+        return currentSources.includes('Nothing') ? [] : ['Nothing'];
       }
 
-      return [...currentSources, source];
+      const sourcesWithoutNothing = currentSources.filter((item) => item !== 'Nothing');
+
+      if (currentSources.includes(source)) {
+        return sourcesWithoutNothing.filter((item) => item !== source);
+      }
+
+      return [...sourcesWithoutNothing, source];
     });
   };
 

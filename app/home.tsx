@@ -43,7 +43,7 @@ const homeActions = [
   },
   {
     title: 'Data View',
-    description: 'See your stress data by days, weeks, and months',
+    description: 'Explore your reflection patterns and insights',
     href: '/data-view',
     color: '#B99034',
     circleColor: '#F9EFC5',
