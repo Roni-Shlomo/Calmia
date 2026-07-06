@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
     Image,
     SafeAreaView,
     ScrollView,
@@ -25,6 +24,7 @@ export default function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupError, setSignupError] = useState('');
 
   const isValidEmail = (value: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -56,27 +56,27 @@ export default function SignupScreen() {
     hasTriedSubmit && (!confirmPassword || password !== confirmPassword);
   const handleSignup = async () => {
     setHasTriedSubmit(true);
+    setSignupError('');
 
     if (!trimmedEmail || !password || !confirmPassword) {
-      Alert.alert('Missing details', 'Please fill in all fields.');
+      setSignupError('Please fill in all fields.');
       return;
     }
 
     if (!isValidEmail(trimmedEmail)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      setSignupError('Please enter a valid email address.');
       return;
     }
 
     if (!isValidPassword(password)) {
-      Alert.alert(
-        'Password requirements',
+      setSignupError(
         'Password must contain at least 8 characters, at least one letter, and at least one number.'
       );
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Please confirm your password again.');
+      setSignupError('Passwords do not match. Please confirm your password again.');
       return;
     }
 
@@ -97,14 +97,18 @@ export default function SignupScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        Alert.alert('Sign up failed', data.message || 'Could not create account.');
+        if (response.status === 409) {
+          setSignupError('This email is already registered. Please sign in instead.');
+        } else {
+          setSignupError(data.message || 'Could not create account.');
+        }
         return;
       }
 
       await AsyncStorage.setItem('currentUser', JSON.stringify(data.user));
       router.push('/home');
     } catch {
-      Alert.alert('Connection error', 'Could not connect to the server.');
+      setSignupError('Could not connect to the server.');
     } finally {
       setIsSubmitting(false);
     }
@@ -230,6 +234,13 @@ export default function SignupScreen() {
           </View>
           {hasConfirmPasswordError && (
             <Text style={styles.errorText}>Passwords must match.</Text>
+          )}
+
+          {!!signupError && (
+            <View style={styles.formErrorBox}>
+              <Ionicons name="alert-circle-outline" size={18} color="#C96F63" />
+              <Text style={styles.formErrorText}>{signupError}</Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -377,6 +388,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 8,
+  },
+  formErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF8F6',
+    borderWidth: 1,
+    borderColor: '#E8C7C1',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
+  formErrorText: {
+    flex: 1,
+    color: '#C96F63',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   mainButton: {
     backgroundColor: colors.primary,
