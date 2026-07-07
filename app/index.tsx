@@ -11,7 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
+
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -39,7 +41,7 @@ export default function LoginScreen() {
     try {
       setIsSubmitting(true);
 
-      const response = await fetch('http://localhost:6001/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,6 +53,7 @@ export default function LoginScreen() {
       });
 
       const data = await response.json();
+     
 
       if (!response.ok) {
         setLoginError(data.message || 'Invalid email or password.');
@@ -60,7 +63,7 @@ export default function LoginScreen() {
       await AsyncStorage.setItem('currentUser', JSON.stringify(data.user));
 
       router.push('/home');
-    } catch {
+    } catch (error) {
       setLoginError('Could not connect to the server.');
     } finally {
       setIsSubmitting(false);

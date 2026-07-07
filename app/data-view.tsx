@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
 
 type TimeRange = '7d' | '30d' | 'all';
@@ -395,7 +396,7 @@ export default function DataViewScreen() {
         const user = JSON.parse(storedUser);
         setCurrentUserId(user.id);
         const reflectionResponse = await fetch(
-          `http://localhost:6001/reflections/${user.id}`
+          `${API_URL}/reflections/${user.id}`
         );
         const reflectionData = await reflectionResponse.json();
 
@@ -496,7 +497,7 @@ export default function DataViewScreen() {
 
     try {
       const response = await fetch(
-        `http://localhost:6001/ai-analysis/${currentUserId}?range=${selectedRange}`
+        `${API_URL}/ai-analysis/${currentUserId}?range=${selectedRange}`
       );
       const data = await response.json();
 

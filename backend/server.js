@@ -8,6 +8,7 @@ const listeningRoutes = require('./routes/listeningRoutes');
 const gameResultRoutes = require('./routes/gameResultRoutes');
 const reflectionRoutes = require('./routes/reflectionRoutes');
 const aiAnalysisRoutes = require('./routes/aiAnalysisRoutes');
+const therapistRoutes = require('./routes/therapistRoutes');
 
 const pool = require('./config/db');
 
@@ -26,6 +27,7 @@ app.use('/listening', listeningRoutes);
 app.use('/game-results', gameResultRoutes);
 app.use('/reflections', reflectionRoutes);
 app.use('/ai-analysis', aiAnalysisRoutes);
+app.use('/therapists', therapistRoutes);
 
 const PORT = process.env.PORT || 5000;
 
