@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -25,7 +26,7 @@ const TOTAL_CYCLES = 4;
 const CYCLE_SECONDS = BREATH_IN_SECONDS + HOLD_SECONDS + BREATH_OUT_SECONDS;
 const TOTAL_SECONDS = CYCLE_SECONDS * TOTAL_CYCLES;
 
-const CIRCLE_SIZE = 350;
+const CIRCLE_SIZE = 300;
 const STROKE_WIDTH = 8;
 const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -148,7 +149,7 @@ const saveBreathingSession = async () => {
 
     const user = JSON.parse(storedUser);
 
-    await fetch('http://localhost:6001/breathing/complete', {
+    await fetch(`${API_URL}/breathing/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -329,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 45,
+    paddingTop: 18,
   },
   title: {
     fontSize: 42,
@@ -339,15 +340,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: colors.subtext,
     marginBottom: 30,
     textAlign: 'center',
   },
   breathCircle: {
-    width: 350,
-    height: 350,
-    borderRadius: 175,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
     backgroundColor: colors.softGreen,
     justifyContent: 'center',
     alignItems: 'center',
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   breathText: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '800',
     color: colors.primary,
     textAlign: 'center',
@@ -370,10 +371,10 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: colors.card,
     borderRadius: 24,
-    padding: 20,
+    padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   infoLabel: {
     fontSize: 14,
@@ -397,26 +398,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   circleWrapper: {
-  width: 430,
-  height: 430,
+  width: 330,
+  height: 330,
   justifyContent: 'center',
   alignItems: 'center',
-  marginBottom: 12,
+  marginBottom: 8,
   },
   progressRing: {
   position: 'absolute',
   zIndex: 2,
   },
   circleAnimatedWrapper: {
-  width: 350,
-  height: 350,
+  width: 300,
+  height: 300,
   justifyContent: 'center',
   alignItems: 'center',
   },
   breathContent: {
   position: 'absolute',
-  width: 350,
-  height: 350,
+  width: 300,
+  height: 300,
   justifyContent: 'center',
   alignItems: 'center',
   zIndex: 5,

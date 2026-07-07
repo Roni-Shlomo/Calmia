@@ -4,15 +4,16 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Easing,
-    Modal,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Easing,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
 
 const audioFiles: Record<string, any> = {
@@ -94,7 +95,7 @@ export default function SoundPlayerScreen() {
   const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedMinutes = timerMinutes[selectedTimer];
-  const API_URL = 'http://localhost:6001';
+  
 
   const saveListeningSession = async () => {
     try {
@@ -140,13 +141,18 @@ export default function SoundPlayerScreen() {
   });
 
   useEffect(() => {
-    player.loop = !isFixedAudio;
+  player.loop = !isFixedAudio;
 
-    return () => {
-      clearTimers();
+  return () => {
+    clearTimers();
+
+    try {
       player.pause();
-    };
-  }, [player, isFixedAudio]);
+    } catch (e) {
+      // player was already released
+    }
+  };
+}, [player, isFixedAudio]);
 
   const clearTimers = () => {
     if (finishTimeoutRef.current) clearTimeout(finishTimeoutRef.current);
@@ -157,7 +163,9 @@ export default function SoundPlayerScreen() {
 
   const completeSession = () => {
     clearTimers();
-    player.pause();
+    try {
+      player.pause();
+    } catch {}
     setIsPlaying(false);
     setElapsedSeconds(totalSeconds || 0);
     progressAnim.setValue(1);
@@ -172,7 +180,9 @@ export default function SoundPlayerScreen() {
 
   const stopSession = () => {
     clearTimers();
-    player.pause();
+    try {
+      player.pause();
+    } catch {}
     setIsPlaying(false);
     setElapsedSeconds(0);
     progressAnim.stopAnimation();

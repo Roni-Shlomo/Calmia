@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
 
 type ScreenMode = 'menu' | 'tapToRelax' | 'matchTheMood' | 'calmBreak';
@@ -204,7 +205,7 @@ export default function GamesScreen() {
       }
 
       const user = JSON.parse(storedUser);
-      const response = await fetch(`http://localhost:6001/game-results/${user.id}`);
+      const response = await fetch(`${API_URL}/game-results/${user.id}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -227,7 +228,7 @@ export default function GamesScreen() {
       if (!storedUser) return;
 
       const user = JSON.parse(storedUser);
-      const response = await fetch('http://localhost:6001/game-results', {
+      const response = await fetch(`${API_URL}/game-results`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -2,17 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { API_URL } from '../constants/api';
 import { colors } from '../constants/colors';
+
 
 const calmingToolOptions = [
   'Breathing',
@@ -131,7 +133,7 @@ export default function ReflectionScreen() {
 
         const user = JSON.parse(storedUser);
         const response = await fetch(
-          `http://localhost:6001/reflections/${user.id}/today`
+          `${API_URL}/reflections/${user.id}/today`
         );
         const data = await response.json();
 
@@ -203,7 +205,7 @@ export default function ReflectionScreen() {
 
       const user = JSON.parse(storedUser);
 
-      const response = await fetch('http://localhost:6001/reflections', {
+      const response = await fetch(`${API_URL}/reflections`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -227,6 +229,7 @@ export default function ReflectionScreen() {
           notes,
         }),
       });
+      
 
       const data = await response.json();
 
