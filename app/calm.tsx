@@ -48,6 +48,21 @@ export default function CalmScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+  return () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    progressAnim.stopAnimation();
+    circleScale.stopAnimation();
+
+    player.pause();
+    player.seekTo(0);
+  };
+}, [circleScale, player, progressAnim]);
+
+  useEffect(() => {
     if (!started) return;
 
     intervalRef.current = setInterval(() => {
@@ -75,6 +90,7 @@ export default function CalmScreen() {
     if (!started) return;
 
     const safeElapsed = Math.min(elapsedSeconds, TOTAL_SECONDS - 1);
+
     const cycleIndex = Math.floor(safeElapsed / CYCLE_SECONDS);
     const secondsInCycle = safeElapsed % CYCLE_SECONDS;
 
@@ -104,14 +120,10 @@ export default function CalmScreen() {
 
   useEffect(() => {
   if (!started) {
-    Animated.timing(circleScale, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-
-    return;
-  }
+  circleScale.stopAnimation();
+  circleScale.setValue(1);
+  return;
+}
 
   if (breathPhase === 'Breathe In') {
     Animated.timing(circleScale, {
@@ -137,6 +149,28 @@ export default function CalmScreen() {
     }).start();
   }
 }, [breathPhase, circleScale, started]);
+
+const stopBreathingSession = () => {
+  if (intervalRef.current) {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }
+
+  progressAnim.stopAnimation();
+  progressAnim.setValue(0);
+
+  circleScale.stopAnimation();
+  circleScale.setValue(1);
+
+  player.pause();
+  player.seekTo(0);
+
+  setStarted(false);
+  setElapsedSeconds(0);
+  setBreathPhase('Ready');
+  setCurrentCycle(1);
+  lastPhaseRef.current = 'Ready';
+};
 
 const saveBreathingSession = async () => {
   try {
@@ -168,36 +202,41 @@ const saveBreathingSession = async () => {
 };
 
   const handleStartStop = () => {
-    if (started) {
-      setStarted(false);
-      setElapsedSeconds(0);
-      setBreathPhase('Ready');
-      setCurrentCycle(1);
-      player.pause();
-      player.seekTo(0);
-    } else {
-      setElapsedSeconds(0);
-      setBreathPhase('Breathe In');
-      setCurrentCycle(1);
+  if (started) {
+    stopBreathingSession();
+    return;
+  }
 
-      lastPhaseRef.current = 'Ready';
+  if (intervalRef.current) {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }
 
-      progressAnim.stopAnimation();
-      progressAnim.setValue(0);
-      setStarted(true);
-      player.loop = true;
-      player.seekTo(0);
-      player.play();
-      progressAnim.setValue(0);
+  progressAnim.stopAnimation();
+  progressAnim.setValue(0);
 
-      Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: TOTAL_SECONDS * 1000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
-    }
-  };
+  circleScale.stopAnimation();
+  circleScale.setValue(1);
+
+  setElapsedSeconds(0);
+  setBreathPhase('Breathe In');
+  setCurrentCycle(1);
+  lastPhaseRef.current = 'Ready';
+
+  player.pause();
+  player.seekTo(0);
+  player.loop = true;
+
+  setStarted(true);
+  player.play();
+
+  Animated.timing(progressAnim, {
+    toValue: 1,
+    duration: TOTAL_SECONDS * 1000,
+    easing: Easing.linear,
+    useNativeDriver: false,
+  }).start();
+};
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
